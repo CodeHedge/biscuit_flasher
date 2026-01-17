@@ -5,23 +5,24 @@ Customer-facing tool to download and flash the latest Biscuit firmware to your E
 ## Requirements
 
 - Python 3.7 or later
-- USB cables for both ESP32 devices
-- Windows 10/11
+- USB C cable
+- Windows Computer
 
 ## Quick Start
 
-1. Connect both Biscuit devices (WROOM and C5) via USB
-2. Run the flash utility:
+1. Connect both Biscuit device via USB
+2. Hold the boot buttons on the PCB while clicking the reset buttons. Then release boot. This will place both modules in download mode.
+3. Run the flash utility:
    ```
    python biscuit_flash.py
    ```
-3. Follow the on-screen prompts
+4. Follow the on-screen prompts
 
 ## What It Does
 
 The utility automatically:
 1. Downloads the latest firmware from the cloud
-2. Detects your connected Biscuit devices
+2. Detects your connected Biscuit device
 3. Flashes both the C5 (scanner) and WROOM (BLE gateway)
 
 ## Troubleshooting
