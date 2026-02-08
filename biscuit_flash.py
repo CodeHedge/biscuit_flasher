@@ -16,8 +16,10 @@ import time
 import tempfile
 import subprocess
 from pathlib import Path
-from urllib.request import urlopen, urlretrieve
+from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
+
+USER_AGENT = "BiscuitFlashUtility/1.0"
 
 # Configuration
 MANIFEST_URL = "https://firmware.biscuitshop.us/Biscuit_V1/Prod/manifest.json"
@@ -82,7 +84,8 @@ def download_manifest(retries=3):
     """Download firmware manifest from cloud."""
     for attempt in range(retries):
         try:
-            with urlopen(MANIFEST_URL, timeout=30) as response:
+            req = Request(MANIFEST_URL, headers={"User-Agent": USER_AGENT})
+            with urlopen(req, timeout=30) as response:
                 return json.loads(response.read().decode())
         except (URLError, HTTPError) as e:
             if attempt < retries - 1:
@@ -107,7 +110,10 @@ def download_firmware(filename, force=False):
 
     print(f"      Downloading {filename}...", end=" ", flush=True)
     try:
-        urlretrieve(url, cache_path)
+        req = Request(url, headers={"User-Agent": USER_AGENT})
+        with urlopen(req, timeout=60) as response:
+            with open(cache_path, "wb") as f:
+                f.write(response.read())
         print("done")
         return cache_path
     except (URLError, HTTPError) as e:
@@ -150,7 +156,7 @@ def port_exists(port):
     return any(p.device == port for p in ports)
 
 
-def detect_chip_type(port, timeout=10):
+def detect_chip_type(port, timeout=15):
     """Use esptool to detect chip type on given port."""
     try:
         result = subprocess.run(
@@ -167,7 +173,8 @@ def detect_chip_type(port, timeout=10):
         elif "esp32-c" in output_lower or "esp32c" in output_lower:
             # Other C-series chips (C3, C6, etc.) - not our target
             return None
-        elif "esp32" in output_lower:
+        elif "esp32-d" in output_lower or "esp32" in output_lower:
+            # ESP32-D0WD-V3 or other ESP32 variants = WROOM
             return "wroom"
         return None
     except subprocess.TimeoutExpired:
@@ -184,9 +191,16 @@ def scan_for_devices():
     if not ports:
         return devices
 
-    for port_info in ports:
+    # Sort by COM port number descending (highest first)
+    def get_port_num(p):
+        try:
+            return int(''.join(filter(str.isdigit, p.device)))
+        except ValueError:
+            return 0
+    ports = sorted(ports, key=get_port_num, reverse=True)
+
+    for i, port_info in enumerate(ports):
         port = port_info.device
-        description = getattr(port_info, 'description', '') or ''
 
         print(f"      Checking {port}...", end=" ", flush=True)
 
@@ -200,6 +214,14 @@ def scan_for_devices():
             devices["wroom"] = port
         else:
             print("not an ESP32 or not responding")
+
+        # Stop scanning once we've found both devices
+        if devices["c5"] and devices["wroom"]:
+            break
+
+        # Small delay between checks to let devices recover from hard reset
+        if i < len(ports) - 1:
+            time.sleep(0.5)
 
     return devices
 
@@ -352,6 +374,14 @@ def prompt_disconnect(port):
 
 def main():
     """Main entry point."""
+    # Check for --fresh flag to force re-download
+    force_download = "--fresh" in sys.argv
+
+    if force_download and CACHE_DIR.exists():
+        import shutil
+        shutil.rmtree(CACHE_DIR)
+        print("Cleared firmware cache.\n")
+
     print_banner()
 
     # Step 1: Check esptool
@@ -391,8 +421,8 @@ def main():
         print("\nERROR: WROOM merged firmware not available in manifest")
         return 1
 
-    c5_firmware = download_firmware(c5_merged)
-    wroom_firmware = download_firmware(wroom_merged)
+    c5_firmware = download_firmware(c5_merged, force=force_download)
+    wroom_firmware = download_firmware(wroom_merged, force=force_download)
 
     if not c5_firmware or not wroom_firmware:
         print("\nERROR: Could not download firmware files")
@@ -524,15 +554,26 @@ def main():
             print()
 
         # Check if we're done
-        all_done = True
-        for device_type in ["c5", "wroom"]:
-            if flash_results[device_type] is None:
-                # Still have pending devices, but they weren't found
-                # Check if user wants to keep looking
-                all_done = False
+        # Count what's been handled (flashed or skipped) vs still pending
+        handled = [k for k, v in flash_results.items() if v is not None]
+        pending = [k for k, v in flash_results.items() if v is None]
 
-        if all_done or (flash_results["c5"] is not None and flash_results["wroom"] is not None):
+        if not pending:
+            # All devices handled
             break
+
+        # We have pending devices that weren't found
+        # If we flashed at least one device, ask user if they want to continue
+        if handled:
+            missing = ", ".join(d.upper() for d in pending)
+            print(f"\n      {missing} not found. Connect it and press Enter to scan, or Q to finish.")
+            try:
+                choice = input("      > ").strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                break
+            if choice == "q":
+                break
+            # Otherwise continue to rescan
 
     # Summary
     print()
