@@ -7,11 +7,12 @@ Customer-facing tool to download and flash the latest Biscuit firmware to your E
 - Python 3.7 or later
 - USB C cable
 - Windows Computer
+- Drivers!!! https://sparks.gogo.co.nz/ch340.html
 
 ## Quick Start
 
-1. Connect both Biscuit device via USB
-2. Hold the boot buttons on the PCB while clicking the reset buttons. Then release boot. This will place both modules in download mode.
+1. Install the drivers and then, Connect Biscuit device via USB
+2. Hold the boot buttons on the PCB while clicking the reset buttons. Then release boot. This will place both modules in download mode. Sometimes you will need to hold the boot buttons.
 3. Run the flash utility:
    ```
    python biscuit_flash.py
