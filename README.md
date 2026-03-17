@@ -2,6 +2,8 @@
 
 Customer-facing tool to download and flash the latest Biscuit firmware to your ESP32 devices.
 
+This is not for the DIY Bisucit. I will be updating my webflasher repo with the DIY firmware this week :)
+
 ## Requirements
 
 - Python 3.7 or later
