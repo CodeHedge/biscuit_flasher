@@ -2,7 +2,7 @@
 
 Customer-facing tool to download and flash the latest Biscuit firmware to your ESP32 devices.
 
-This is not for the DIY Bisucit. I will be updating my webflasher repo with the DIY firmware this week :)
+This is not for the DIY Bisucit. DIY Biscuit flasher here: https://flasher.biscuitshop.us
 
 ## Requirements
 
