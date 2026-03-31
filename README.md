@@ -1,8 +1,8 @@
 # Biscuit Flash Utility
 
-Customer-facing tool to download and flash the latest Biscuit firmware to your ESP32 devices.
+Customer-facing tool to download and flash the latest Biscuit firmware to your Biscuit in case it losts it's flash or whatever.
 
-This is not for the DIY Bisucit. DIY Biscuit flasher here: https://flasher.biscuitshop.us
+This is not for the DIY Biscuit. DIY Biscuit flasher here: https://flasher.biscuitshop.us
 
 ## Requirements
 
