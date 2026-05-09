@@ -17,7 +17,9 @@ This is not for the DIY Biscuit. DIY Biscuit flasher here: https://flasher.biscu
 2. Hold the boot buttons on the PCB while clicking the reset buttons. Then release boot. This will place both modules in download mode. Sometimes you will need to hold the boot buttons.
 3. Run the flash utility:
    ```
-   python biscuit_flash.py
+   python biscuit_pro_flash.py
+   OR
+   python biscuit_ultra_flash.py
    ```
 4. Follow the on-screen prompts
 
