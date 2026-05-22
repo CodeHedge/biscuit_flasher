@@ -10,6 +10,7 @@ Usage:
 """
 
 import os
+import ssl
 import sys
 import json
 import time
@@ -20,6 +21,20 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 USER_AGENT = "BiscuitFlashUtility/1.0"
+
+_ssl_context = None
+
+
+def get_ssl_context():
+    global _ssl_context
+    if _ssl_context is not None:
+        return _ssl_context
+    try:
+        import certifi
+        _ssl_context = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        _ssl_context = ssl.create_default_context()
+    return _ssl_context
 
 # Configuration
 MANIFEST_URL = "https://firmware.biscuitshop.us/Biscuit_V1/Prod/manifest.json"
@@ -36,7 +51,7 @@ FLASH_CONFIG = {
     },
     "wroom": {
         "chip": "esp32",
-        "baud": "921600",
+        "baud": "460800",
         "flash_freq": "40m",
         "name": "WROOM BLE Gateway"
     }
@@ -53,30 +68,52 @@ def print_banner():
 
 
 def check_esptool():
-    """Verify esptool is installed, install if needed."""
+    """Verify esptool, pyserial, and certifi are installed, install if needed."""
+    esptool_ok = False
     try:
         result = subprocess.run(
             [sys.executable, "-m", "esptool", "version"],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            # Extract version from output
             version_line = result.stdout.strip().split('\n')[0]
             print(f"      esptool {version_line.split()[-1]} installed")
-            return True
+            esptool_ok = True
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    print("      Installing esptool...")
+    try:
+        import serial.tools.list_ports  # noqa: F401
+        pyserial_ok = True
+    except ImportError:
+        pyserial_ok = False
+
+    try:
+        import certifi  # noqa: F401
+        certifi_ok = True
+    except ImportError:
+        certifi_ok = False
+
+    if esptool_ok and pyserial_ok and certifi_ok:
+        return True
+
+    missing = []
+    if not esptool_ok:
+        missing.append("esptool")
+    if not pyserial_ok:
+        missing.append("pyserial")
+    if not certifi_ok:
+        missing.append("certifi")
+    print(f"      Installing {', '.join(missing)}...")
     try:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "esptool", "pyserial"],
+            [sys.executable, "-m", "pip", "install", "esptool", "pyserial", "certifi"],
             capture_output=True, check=True, timeout=120
         )
-        print("      esptool installed successfully")
+        print("      Dependencies installed successfully")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"      ERROR: Failed to install esptool: {e}")
+        print(f"      ERROR: Failed to install dependencies: {e}")
         return False
 
 
@@ -85,7 +122,7 @@ def download_manifest(retries=3):
     for attempt in range(retries):
         try:
             req = Request(MANIFEST_URL, headers={"User-Agent": USER_AGENT})
-            with urlopen(req, timeout=30) as response:
+            with urlopen(req, timeout=30, context=get_ssl_context()) as response:
                 return json.loads(response.read().decode())
         except (URLError, HTTPError) as e:
             if attempt < retries - 1:
@@ -111,7 +148,7 @@ def download_firmware(filename, force=False):
     print(f"      Downloading {filename}...", end=" ", flush=True)
     try:
         req = Request(url, headers={"User-Agent": USER_AGENT})
-        with urlopen(req, timeout=60) as response:
+        with urlopen(req, timeout=60, context=get_ssl_context()) as response:
             with open(cache_path, "wb") as f:
                 f.write(response.read())
         print("done")
