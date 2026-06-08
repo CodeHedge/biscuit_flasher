@@ -8,7 +8,7 @@ This is not for the DIY Biscuit. DIY Biscuit flasher here: https://flasher.biscu
 
 - Python 3.7 or later
 - USB C cable
-- Windows Computer
+- Windows or Mac Computer
 - Drivers!!! https://sparks.gogo.co.nz/ch340.html
 
 ## Quick Start
